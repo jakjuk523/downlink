@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Downlink — универсальный загрузчик видео</title>
+<meta name="description" content="Downlink — скачивайте видео с YouTube, VK Видео и RuTube в качестве от 240p до 4K или как MP3. Устанавливается как приложение (PWA).">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a0d14">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<meta property="og:title" content="Downlink — универсальный загрузчик видео">
+<meta property="og:description" content="YouTube · VK Видео · RuTube. Качество от 240p до 4K, или звук в MP3.">
+<meta property="og:image" content="preview.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d14;
+    --panel:#121729;
+    --panel-2:#171d33;
+    --border:#242c46;
+    --accent:#8b6cff;
+    --accent-2:#22d3ee;
+    --success:#34d399;
+    --error:#f87171;
+    --warning:#fbbf24;
+    --text:#e7e9f4;
+    --muted:#8a90ac;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(139,108,255,0.12), transparent 45%),
+      radial-gradient(circle at 85% 100%, rgba(34,211,238,0.08), transparent 50%),
+      var(--bg);
+    background-attachment:fixed;
+    font-family:var(--body);color:var(--text);
+    padding:40px 20px 80px;
+  }
+  .wrap{max-width:780px;margin:0 auto;}
+
+  /* Hero / brand */
+  .top-row{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:6px;flex-wrap:wrap;}
+  .brand-line{display:flex;align-items:center;gap:12px;}
+  .led{width:10px;height:10px;border-radius:50%;background:var(--muted);transition:background .3s, box-shadow .3s;}
+  .led.online{background:var(--success);box-shadow:0 0 10px var(--success);animation:pulse 2s infinite;}
+  .led.offline{background:var(--error);box-shadow:0 0 10px var(--error);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .eyebrow{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+
+  .brand{font-family:var(--display);font-weight:700;font-size:56px;letter-spacing:-.03em;margin:8px 0 4px;line-height:1;}
+  .brand span{color:var(--accent-2);}
+  .tagline{color:var(--muted);font-size:14.5px;margin:0 0 28px;}
+  .tagline b{color:var(--accent-2);font-weight:600;}
+
+  .install-btn{
+    background:transparent;border:1px solid var(--border);color:var(--text);
+    border-radius:11px;padding:10px 16px;font-family:var(--body);font-weight:600;font-size:13px;
+    cursor:pointer;transition:.15s;display:none;align-items:center;gap:8px;
+  }
+  .install-btn.show{display:inline-flex;}
+  .install-btn:hover{border-color:var(--accent);}
+
+  /* quality chips reference */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;}
+  .chip{
+    font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    border:1px solid var(--border);border-radius:100px;padding:5px 12px;
+  }
+
+  .console{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--border);border-radius:18px;padding:22px;
+    box-shadow:0 20px 60px -30px rgba(0,0,0,.7);position:relative;overflow:hidden;
+  }
+  .console::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+  .row{display:flex;gap:10px;}
+  input[type=text]{
+    flex:1;background:#0d1120;border:1px solid var(--border);border-radius:12px;
+    padding:16px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  input[type=text]::placeholder{color:#565f7d;}
+  input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,108,255,.15);}
+
+  .icon-btn{
+    background:#161c33;border:1px solid var(--border);color:var(--text);
+    border-radius:12px;padding:0 20px;font-family:var(--body);font-weight:600;font-size:14px;
+    cursor:pointer;transition:transform .15s, border-color .15s, background .15s;white-space:nowrap;
+  }
+  .icon-btn:hover{border-color:var(--accent-2);background:#1b2340;transform:translateY(-1px);}
+
+  .controls-row{display:flex;gap:12px;align-items:center;margin-top:16px;flex-wrap:wrap;}
+  select{
+    background:#0d1120;border:1px solid var(--border);color:var(--text);
+    border-radius:12px;padding:14px;font-family:var(--mono);font-size:13.5px;outline:none;cursor:pointer;
+  }
+  .main-btn{
+    flex:1;min-width:200px;background:linear-gradient(135deg,var(--accent),#6a4bff);border:none;color:#fff;
+    font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.02em;padding:17px 20px;
+    border-radius:12px;cursor:pointer;box-shadow:0 10px 30px -10px rgba(139,108,255,.6);
+    transition:transform .15s, box-shadow .15s, opacity .15s;
+  }
+  .main-btn:hover{transform:translateY(-2px);box-shadow:0 14px 34px -8px rgba(139,108,255,.75);}
+  .main-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+  .ghost-btn{
+    background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:12px;
+    padding:17px 20px;font-family:var(--body);font-weight:600;font-size:14px;cursor:pointer;transition:.15s;
+  }
+  .ghost-btn:hover{border-color:var(--error);color:var(--error);}
+  .quality-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-right:-4px;}
+
+  .queue{margin-top:26px;display:flex;flex-direction:column;gap:14px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px 20px;animation:slideIn .35s ease;}
+  @keyframes slideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:12px;}
+  .card-title{font-family:var(--display);font-weight:600;font-size:15px;line-height:1.35;}
+  .card-badge{font-family:var(--mono);font-size:11px;color:var(--accent-2);border:1px solid rgba(34,211,238,.35);
+    border-radius:100px;padding:3px 10px;white-space:nowrap;}
+  .card-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 18px;
+    font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+  .card-meta span b{color:var(--text);font-weight:500;}
+
+  .meter{display:flex;gap:3px;height:20px;margin-bottom:10px;}
+  .seg{flex:1;border-radius:3px;background:#1b2136;transition:background .25s, box-shadow .25s;}
+  .seg.on{background:var(--accent-2);box-shadow:0 0 8px rgba(34,211,238,.55);}
+  .seg.err{background:var(--error) !important;box-shadow:0 0 8px rgba(248,113,113,.55) !important;}
+  .seg.ok{background:var(--success) !important;box-shadow:0 0 8px rgba(52,211,153,.55) !important;}
+
+  .telemetry{display:flex;flex-wrap:wrap;gap:6px 18px;font-family:var(--mono);font-size:12.5px;color:var(--text);}
+  .telemetry span{color:var(--muted);}
+  .telemetry b{color:var(--accent-2);font-weight:600;}
+
+  .status-line{font-size:13px;margin-top:10px;color:var(--muted);font-family:var(--mono);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .status-line.success{color:var(--success);}
+  .status-line.error{color:var(--error);}
+  .save-btn{
+    background:#161c33;border:1px solid var(--accent-2);color:var(--accent-2);border-radius:9px;
+    padding:7px 13px;font-size:12px;font-family:var(--body);font-weight:600;cursor:pointer;text-decoration:none;
+  }
+  .save-btn:hover{background:rgba(34,211,238,.12);}
+
+  .summary{margin-top:24px;padding:18px 20px;border-radius:16px;border:1px dashed var(--border);
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:13px;color:var(--muted);}
+  .summary b{color:var(--text);}
+  .summary .actions{display:flex;gap:10px;}
+  .small-btn{background:#161c33;border:1px solid var(--border);color:var(--text);border-radius:9px;
+    padding:9px 14px;font-size:12.5px;font-family:var(--body);font-weight:600;cursor:pointer;}
+  .small-btn:hover{border-color:var(--accent-2);}
+
+  .empty{margin-top:30px;text-align:center;color:var(--muted);font-size:13.5px;padding:30px 10px;
+    border:1px dashed var(--border);border-radius:16px;}
+  .empty b{color:var(--accent-2);}
+
+  .footer-note{margin-top:30px;font-size:11.5px;color:#4d5470;text-align:center;line-height:1.6;}
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top-row">
+    <div class="brand-line">
+      <div class="led" id="statusLed"></div>
+      <span class="eyebrow" id="statusText">проверка соединения…</span>
+    </div>
+    <button class="install-btn" id="installBtn">⬇ Установить как приложение</button>
+  </div>
+
+  <h1 class="brand">DOWN<span>LINK</span></h1>
+  <p class="tagline">Универсальная консоль загрузки видео — <b>YouTube · VK Видео · RuTube</b></p>
+
+  <div class="chips">
+    <span class="chip">240p</span><span class="chip">360p</span><span class="chip">480p</span>
+    <span class="chip">720p</span><span class="chip">1080p</span><span class="chip">2K</span>
+    <span class="chip">4K</span><span class="chip">MP3</span>
+  </div>
+
+  <div class="console">
+    <div class="row">
+      <input type="text" id="urlInput" placeholder="Вставьте одну или несколько ссылок через пробел…" autofocus>
+      <button class="icon-btn" id="pasteBtn">Вставить</button>
+    </div>
+
+    <div class="controls-row">
+      <span class="quality-label">Качество</span>
+      <select id="quality">
+        <option value="240">240p</option>
+        <option value="360">360p</option>
+        <option value="480">480p</option>
+        <option value="720">720p</option>
+        <option value="1080" selected>1080p</option>
+        <option value="2k">2K (1440p)</option>
+        <option value="4k">4K (2160p)</option>
+        <option value="audio">Только звук · MP3</option>
+      </select>
+      <button class="main-btn" id="downloadBtn">⬇ ЗАГРУЗИТЬ</button>
+      <button class="ghost-btn" id="clearBtn">Очистить</button>
+    </div>
+  </div>
+
+  <div class="queue" id="queue"></div>
+  <div class="empty" id="emptyState">Очередь пуста. Вставьте ссылку и нажмите <b>ЗАГРУЗИТЬ</b>.</div>
+
+  <p class="footer-note" id="apiNote"></p>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
